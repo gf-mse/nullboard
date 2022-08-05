@@ -3454,7 +3454,7 @@
 			return "Required board properties are empty.";
 
 		if (foo.format != NB.blobVersion)
-			return `Unsupported blob format "${board.format}", expecting "${NB.blobVersion}".`;
+			return `Unsupported blob format "${foo.format}", expecting "${NB.blobVersion}".`;
 
 		return null;
 	}
@@ -3507,8 +3507,11 @@
 
 			if (index.has(board.id))
 			{
-				console.log(`Import: board ${board.id} (${board.title}) will be assigned new ID`);
-				board.id = +new Date();
+				msg = `Import: shall board ${board.id} (${board.title}) be assigned a new ID (Cancel=No/overwrite existing/)?`
+                                if (confirm(msg)) {
+                                        console.log(`Import: board ${board.id} (${board.title}) will be assigned new ID`);
+                                        board.id = +new Date();
+                                }
 			}
 
 			board.revision--; // save will ++ it back
