@@ -3873,8 +3873,10 @@
 
 		if (NB.board)
 		{
-			title = NB.board.title;
-			title = 'NB - ' + (title || '(untitled board)');
+                        title = NB.board.title || '(untitled board)' ;
+                        // title = 'NB - ' + (title || '(untitled board)');
+                        title = 'NB - ' + title  + " - " + NB.board.id + '.' + NB.board.revision ;
+
 		}
 
 		document.title = title;
