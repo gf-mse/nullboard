@@ -1597,6 +1597,7 @@
 				<input class=imp-board-select type="file" accept=".nbx">
 
 			<a href=# class=auto-backup>Auto-backup...</a>
+			<a href=# class=test-demo>Make a test board</a>
 
 			<a href=# class=stash-board-local> =&gt; Stash board </a>
 			<a href=# class=unstash-board-local> &lt;= Unstash board </a>
@@ -3866,6 +3867,173 @@ function mergeBoards(left_board, right_board) {
 	}
 
 	/*
+	 *      a test board
+	 */
+	function createTestBoard()
+	{
+		var demo =
+                {
+                    "format": 20190412,
+                    "history": [1],
+                    "id": 1659177201493,
+                    "lists": [
+                        {
+                            "id": 1659182628550,
+                            "notes": [
+                                {
+                                    "id": 1659177223011,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 1.1"
+                                },
+                                {
+                                    "id": 1659177223012,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 1.2"
+                                }
+                            ],
+                            "title": "list 1"
+                        },
+                        {
+                            "id": 1659182628551,
+                            "notes": [
+                                {
+                                    "id": 1659177223014,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 2.1"
+                                },
+                                {
+                                    "id": 1659177223015,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 2.2"
+                                },
+                                {
+                                    "id": 1659177223016,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 2.3"
+                                },
+                                {
+                                    "id": 1659177223017,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 2.4"
+                                }
+                            ],
+                            "title": "list 2"
+                        },
+                        {
+                            "id": 1659182628552,
+                            "notes": [
+                                {
+                                    "id": 1659177223019,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 3.1"
+                                },
+                                {
+                                    "id": 1659177223020,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 3.2"
+                                },
+                                {
+                                    "id": 1659177223021,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 3.3"
+                                }
+                            ],
+                            "title": "list 3"
+                        },
+                        {
+                            "id": 1659182628553,
+                            "notes": [
+                                {
+                                    "id": 1659182571401,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 4.1"
+                                },
+                                {
+                                    "id": 1659182628554,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 4.2"
+                                }
+                            ],
+                            "title": "list 4"
+                        },
+                        {
+                            "id": 1659425936725,
+                            "notes": [
+                                {
+                                    "id": 1659425936726,
+                                    "marked": false,
+                                    "min": false,
+                                    "new": false,
+                                    "old": false,
+                                    "raw": false,
+                                    "text": "note 5.1"
+                                }
+                            ],
+                            "title": "list 5"
+                        }
+                    ],
+                    "revision": 1,
+                    "title": "test board"
+                };
+
+		if (! demo)
+			return false;
+
+		demo.id = +new Date();
+		demo.revision = 1;
+
+		NB.storage.saveBoard(demo);
+		NB.storage.setActiveBoard(demo.id);
+
+		return Object.assign(new Board(), demo);
+	}
+
+
+	/*
 	 *      copying a board structure to a "stashed" location
 	 */
 	function stashBoardCopyLocal(nb_ref)
@@ -5410,17 +5578,9 @@ function mergeBoards(left_board, right_board) {
 		configBackups();
 	});
 
-	//
-	$('.config .section .title').on('click', function(){
-		$(this).closest('.section').toggleClass('open');
-		return false;
-	});
-
-	$('.config').on('click', '.switch-font', function(){
-		var font = $(this).attr('font');
-		selectFont(font);
-		NB.storage.setFontName(font);
-		return false;
+	$('.config .test-demo').on('click', function(){
+		NB.board = createTestBoard();
+                showBoard(true);
 	});
 
         // --------------------------------------------------
@@ -5451,6 +5611,19 @@ function mergeBoards(left_board, right_board) {
 	$('.config .merge-stashed-local').on('click', invokeMergeStashedLocal);
 
         // --------------------------------------------------
+
+	//
+	$('.config .section .title').on('click', function(){
+		$(this).closest('.section').toggleClass('open');
+		return false;
+	});
+
+	$('.config').on('click', '.switch-font', function(){
+		var font = $(this).attr('font');
+		selectFont(font);
+		NB.storage.setFontName(font);
+		return false;
+	});
 
 	//
 	$('.config .f-prefs .ui-fs .less').on('click', function(){
