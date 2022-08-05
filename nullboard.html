@@ -2601,23 +2601,59 @@
 
 <script type="text/javascript">
 
-	function Note(text)
+        function IdGen() {
+            this.lastid = 0;
+            // that = this;
+            this.newId = function() {
+                var result = + new Date();
+
+                if ( result <= this.lastid ) {
+                    result = ++ this.lastid;
+                } else {
+                    this.lastid = result;
+                }
+                return result;
+            }
+        }
+        idgen = new IdGen();
+
+/*
+        // [ https://stackoverflow.com/a/2117523/558008 ]
+        function uuidv4() {
+            return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+                (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+            );
+        }
+*/
+
+        // console.log(uuidv4());
+
+// -----------------------------------------------------------------------
+
+	function Note(text, id)
 	{
-		this.text = text;
-		this.raw  = false;
-		this.min  = false;
-                // merge colors, can be used for other purposes as well )
+		this.text    = text;
+		this.raw     = false;
+		this.min     = false;
+
+                // merge color, can be used for other purposes as well )
 		this.marked  = false;
+
+                // create a new id if the id is unset
+                this.id = (id) ? id : idgen.newId();
 	}
 
-	function List(title)
+	function List(title, id)
 	{
 		this.title = title;
 		this.notes = [ ];
 
-		this.addNote = function(text)
+                // create a new id if the id is unset
+                this.id = (id) ? id : idgen.newId();
+
+		this.addNote = function(text, id)
 		{
-			var x = new Note(text);
+			var x = new Note(text, id);
 			this.notes.push(x);
 			return x;
 		}
@@ -2631,12 +2667,13 @@
 		this.title    = title || '';
 		this.lists    = [ ];
 
-		this.addList = function(title)
+		this.addList = function(title, id)
 		{
-			var x = new List(title);
+			var x = new List(title, id);
 			this.lists.push(x);
 			return x;
 		}
+
 	}
 
 </script>
@@ -3244,14 +3281,20 @@
 
 		$board.find('.list').each(function(){
 			var $list = $(this);
-			var l = board.addList( getText($list.find('.head .text')) );
+			var l = board.addList( getText($list.find('.head .text'))
+                                             , + $list.attr('data-id')
+                                             );
+                        // save the ids if there are any
+                        // l.id  = + $list.attr('data-id');
 
 			$list.find('.note').each(function(){
-				var $note = $(this)
-				var n = l.addNote( getText($note.find('.text')) );
+				var $note = $(this);
+				var n = l.addNote( getText($note.find('.text')), + $note.attr('data-id') );
 				n.raw    = $note.hasClass('raw');
 				n.marked = $note.hasClass('mark');
 				n.min    = $note.hasClass('collapsed');
+
+                                // n.id     = + $note.attr('data-id');
 			});
 		});
 
@@ -3350,14 +3393,20 @@
 			var $l_notes = $l.find('.notes');
 
 			setText( $l.find('.head .text'), list.title );
+                        // load the ids if there are any
+                        $l.attr('data-id', list.id);
+                        // $l_notes.attr('data-id', list.id);
 
 			list.notes.forEach(function(n){
 				var $n = $ndiv.clone();
 				setText( $n.find('.text'), n.text );
 				if (n.raw)     $n.addClass('raw');
 				if (n.marked)  $n.addClass('mark');
+                                //
 				if (n.min)     $n.addClass('collapsed');
 				$l_notes.append($n);
+
+                                $n.attr('data-id', n.id);
 			});
 
 			$b_lists.append($l);
