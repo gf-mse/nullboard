@@ -1598,8 +1598,9 @@
 
 			<a href=# class=auto-backup>Auto-backup...</a>
 
-			<a href=# class=stash-board-local> =&gt; Stash board</a>
-			<a href=# class=unstash-board-local> &lt;= Unstash board</a>
+			<a href=# class=stash-board-local> =&gt; Stash board </a>
+			<a href=# class=unstash-board-local> &lt;= Unstash board </a>
+			<a href=# class=merge-stashed-local> &lt;= Merge stashed + </a>
 
 			<div class="section ui-prefs break">
 				<a href=# class=title>UI preferences<u>...</u></a>
@@ -2800,6 +2801,262 @@ function _dump(expression, comment) {
 // # try to add this at the end :
 // _dump('NB');
 
+// -----------------------------------------------------------------------
+
+function mergedBoardTitles(left_title, right_title) {
+
+    if ( left_title == right_title )
+        return left_title;
+
+    // else
+    return left_title + ' | ' + right_title ;
+}
+
+
+function mergedListTitles(left_title, right_title) {
+
+    if ( left_title == right_title )
+        return left_title;
+
+    // else
+    return left_title + ' /\n/ ' + right_title ;
+}
+
+function mergedNoteTexts(left_text, right_text) {
+
+    if ( left_text == right_text )
+        return left_title;
+
+    // else
+    return left_text + '\n-----\n' + right_text ;
+}
+
+
+// -----------------------------------------------------------------------
+
+// merges two board .lists, ignoring their .notes
+// (sets an empty .notes[] array for each list)
+//
+// returns a new list with merged board list titles for same list ids
+function mergeBoardListsShallow(left_lists, right_lists) {
+    var result = [];
+
+    var indexLookup = {} ; // list id -> list
+
+    for (var L of left_lists) {
+        // L = L.shallowClone();
+        L = clone_list_shallow(L);
+        L.notes = [];
+        indexLookup[L.id] = L;
+
+        result.push(L);
+    }
+
+    for (var R of right_lists) {
+        // R = R.shallowClone();
+        R = clone_list_shallow(R);
+        R.notes = [];
+
+        L = indexLookup[R.id];
+        if (L) {
+            L.title = mergedListTitles(L.title, R.title);
+            // the list object is already in the array, no push needed
+        } else {
+            result.push(R);
+        }
+    }
+
+    return result;
+}
+
+
+// -----------------------------------------------------------------------
+
+//
+// (a) consider note_b "new" ;
+// (b) keep the 'raw' or 'min' flag if once set ;
+// (c) ignore existing old|marked|new flags and set them here
+//
+function mergeTwoNotesData( note_a, note_b ) {
+
+    var result = clone_note_shallow(note_a); // shall keep the id
+    // aliases
+    var note = result, a = note_a, b = note_b;
+
+    if ( ! (a.id === b.id ) ) {
+        _dbg(`mergeNoteData(): a.id=${a.id} != b.id=${b.id}`);
+        _dbg(`mergeNoteData(): a.text=${a.text}`);
+        _dbg(`mergeNoteData(): b.text=${b.text}`);
+        // merge anyway though
+    }
+
+    if (a.text == b.text) {
+
+        // result.text    = a.text ;
+        // preserve 'marked' if the new state has it
+        result.marked  = b.marked;
+
+    } else {
+        result.text    = mergedNoteTexts(a.text, b.text);
+        result.marked  = true;
+    }
+
+    result.raw     = a.raw || b.raw;
+    result.min     = a.min || b.min;
+
+    result.old     = false;
+    result.new     = false;
+
+    return result;
+}
+
+
+// -----------------------------------------------------------------------
+
+// => FILLME: add a prerequisite check procedure to ensure that every list / note has an id
+
+// const NOTE_STATES = { 'SAME' : 'same', 'OLD' : 'old', 'NEW' : 'new', 'MERGED' : 'merged' };
+
+function NoteData(note, list_id, list_pos, status) {
+
+    this.note     = note ;      // note object
+    this.list_id  = list_id ;
+    this.list_pos = list_pos ;  // note index in the list
+
+    // '.state' is obsolete, check note flags instead
+/*
+    this.state    = status ;    // originally old|new <=> left|right,
+                                // then old|same|merged|new
+ */
+}
+
+
+// add board notes to a { note_id => note_data } lookup index
+function boardToIndex(lookup_index, board, old_or_new) {
+
+    _dbg(`boardToIndex(B=${board.id}.${board.revision}, ${old_or_new}): started`);
+
+    var I = lookup_index || {} ; // a short alias
+
+    for (var L of board.lists) {
+        // _dbg(`boardToIndex(L=${L.id}) => `);
+
+        for (var i = 0; i < L.notes.length; ++i) {
+            _dbg(`in boardToIndex(L=${L.id}, n=${i})`);
+
+            var note_to_add = L.notes[i];
+            var updated, existing = I[note_to_add.id];
+
+            if (existing) {
+                _dbg(`boardToIndex(): merging n=${existing.note.id} and n=${note_to_add.id} (${old_or_new})`);
+
+                // merge note texts if needed, update list id / list pos to latest ;
+                // nb: "merged/marked" flag shall be set or cleared internally by mergeTwoNotes()
+                updated = new NoteData(mergeTwoNotesData(existing.note, note_to_add), L.id, i);
+            } else {
+                _dbg(`boardToIndex(): adding n=${note_to_add.id} (${old_or_new})`);
+
+                // updated = new NoteData(note_to_add.shallowClone(), L.id, i);
+                updated = new NoteData(clone_note_deep(note_to_add), L.id, i);
+                // everything that is not 'new' or 'right' is considered 'left' / 'old' )
+                if ( old_or_new == 'right' || old_or_new == 'new' ) {
+
+                    // fix old/new state, ignore the rest ; in particular, leave old "marked" untouched
+                    updated.note.new = true;
+                    updated.note.old = false;
+
+                } else {
+                    updated.note.new = false;
+                    updated.note.old = true;
+                }
+            }
+
+            I[note_to_add.id] = updated ;
+        }
+    }
+
+    // convenience
+    return I;
+}
+
+// -----------------------------------------------------------------------
+
+
+// "right" is considered new and takes precedence in position
+/*
+ * FILLME: describe
+ */
+function mergeBoards(left_board, right_board) {
+
+    // var result = new Board();
+    // # copy "everything shallow" (everything but .lists)
+    var new_board = clone_board_shallow(left_board);
+        new_board.lists = [] ;
+    // -------------------------------------------------------------------
+
+    // merge board titles
+    new_board.title = mergedBoardTitles(left_board.title, right_board.title);
+    // merge list headers
+    var board_lists = mergeBoardListsShallow(left_board.lists, right_board.lists);
+    new_board.lists = board_lists;
+    _dump(board_lists, 'mergeBoards(): board_lists');
+
+    // now let us merge the note sets
+    var note_index = boardToIndex({}, left_board, 'left');
+    // merging ...
+        note_index = boardToIndex(note_index, right_board, 'right');
+    _dump(note_index, 'mergeBoards(): note_index');
+
+    // now populate the new board with the results
+    var listIndexLookup = {} ; // list id -> list
+    for (var i in board_lists) {
+        // list id => list index
+        listIndexLookup[board_lists[i].id] = i;
+    }
+
+    // populate lists
+    for (var key_id in note_index) {
+        var note_data = note_index[key_id];
+        _dbg(`mergeBoards(${left_board.id}, ${right_board.id}): adding note ${note_data.note.id} to list ${note_data.list_id}`);
+
+        // not using .list_pos here, but will use to sort .notes below )
+        board_lists[ listIndexLookup[note_data.list_id] ].notes.push(note_data.note);
+    }
+
+    // sort function : +1 for "a below b" # .sort() uses an (a > b) to sort ascending ;
+    //                                    # in our case ascending is "below"
+    function cmp_below(note_a, note_b) {
+
+        // since array::sort() takes two arguments only, we shall be using a closure )
+        var a_data = note_index[note_a.id];
+        var b_data = note_index[note_b.id];
+        // we assume that both notes belong to the same list id ;
+        // in this case, we can simply compare note list positions,
+        // and put "new" notes on top in the case of conflict
+
+        var result = a_data.list_pos - b_data.list_pos;
+        if (0 === result) {
+            result = ( (+ (note_a.old) ) - (+ (note_b.old)) ) + // a.old is true => it goes below
+                     ( (+ (note_b.new) ) - (+ (note_a.new)) ) ; // b.new is true => it goes above
+        }
+
+        // todo: alternatively, move deleted / old to the bottom and new to the top )
+
+        return result;
+    }
+
+    // sort lists
+    for (var L of board_lists) {
+        L.notes.sort(cmp_below);
+    }
+
+    // new_board.revision ++ ;
+
+    // -------------------------------------------------------------------
+    return new_board;
+}
+
+
 </script>
 
 <script type="text/javascript">
@@ -3628,6 +3885,19 @@ function _dump(expression, comment) {
             // just in case
             return board; // 'var' in JavaScript has function scope, right?
 	}
+
+        function invokeMergeStashedLocal() {
+                // alert('merge-stashed-board');
+                if (NB.stashed) {
+                    var _message = `merged ${NB.board.id}.${NB.board.revision} and ${NB.stashed.id}.${NB.stashed.revision}`
+                    NB.board = mergeBoards(NB.board, NB.stashed);
+                    showBoard(true);
+                    updatePageTitle(_message);
+                } else {
+                    _dbg(`NB.stashed is empty: ${NB.stashed}`)
+                }
+	};
+
 
 	/*
 	 *	board export / import
@@ -5177,6 +5447,8 @@ function _dump(expression, comment) {
                     alert("Please stash a board before it can be loaded!");
                 }
 	});
+
+	$('.config .merge-stashed-local').on('click', invokeMergeStashedLocal);
 
         // --------------------------------------------------
 
