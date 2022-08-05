@@ -639,6 +639,32 @@
 	}
 
 	/***/
+	.board .note.old {
+		/* background: #fff7e6; */
+		/* background: #ffffcc; */
+		background: #fff0cc;
+	}
+
+	.board .note.old.editing {
+		background: #fff;
+	}
+
+	.board .note.old .text {
+	}
+
+	/***/
+	.board .note.new {
+		background: #e6ffe6;
+	}
+
+	.board .note.new.editing {
+		background: #fff;
+	}
+
+	.board .note.new .text {
+	}
+
+	/***/
 	.board .note.collapsed {
 		padding-bottom: 6px;
 	}
@@ -1648,7 +1674,9 @@
 				<div class=bulk>
 					<a href=# class='del-note warn'>X</a>
 					<a href=# class='raw-note'>R</a>
+					<a href=# class='toggle-old'>O</a>
 					<a href=# class='mark-unmark'>M</a>
+					<a href=# class='toggle-new'>N</a>
 					<a href=# class='collapse'>_</a>
 				</div>
 			</div>
@@ -2636,8 +2664,11 @@
 		this.raw     = false;
 		this.min     = false;
 
-                // merge color, can be used for other purposes as well )
+                // merge colors, can be used for other purposes as well )
+                // TODO: move this to a single .style/.flavour property
+		this.old     = false;
 		this.marked  = false;
+		this.new     = false;
 
                 // create a new id if the id is unset
                 this.id = (id) ? id : idgen.newId();
@@ -3291,7 +3322,11 @@
 				var $note = $(this);
 				var n = l.addNote( getText($note.find('.text')), + $note.attr('data-id') );
 				n.raw    = $note.hasClass('raw');
+				// todo: if old | new or either of (old,new) | marked => save "marked" only
+                                n.old    = $note.hasClass('old');
 				n.marked = $note.hasClass('mark');
+				n.new    = $note.hasClass('new');
+                                // 
 				n.min    = $note.hasClass('collapsed');
 
                                 // n.id     = + $note.attr('data-id');
@@ -3401,8 +3436,12 @@
 				var $n = $ndiv.clone();
 				setText( $n.find('.text'), n.text );
 				if (n.raw)     $n.addClass('raw');
+                                // "marked" has display precedence, so it comes last
+				// todo: if old | new or either of (old,new) | marked => apply "marked" only
+				if (n.old)     $n.addClass('old');
+				if (n.new)     $n.addClass('new');
 				if (n.marked)  $n.addClass('mark');
-                                //
+                                // 
 				if (n.min)     $n.addClass('collapsed');
 				$l_notes.append($n);
 
@@ -4894,14 +4933,27 @@
 		return false;
 	});
 
-	$('.wrap').on('click', '.board .collapse', function(){
-		$(this).closest('.note').toggleClass('collapsed');
+        // todo: improve "toggle" logic
+	$('.wrap').on('click', '.board .toggle-old', function(){
+		$(this).closest('.note').toggleClass('old');
 		saveBoard();
 		return false;
 	});
 
 	$('.wrap').on('click', '.board .mark-unmark', function(){
 		$(this).closest('.note').toggleClass('mark');
+		saveBoard();
+		return false;
+	});
+
+	$('.wrap').on('click', '.board .toggle-new', function(){
+		$(this).closest('.note').toggleClass('new');
+		saveBoard();
+		return false;
+	});
+
+	$('.wrap').on('click', '.board .collapse', function(){
+		$(this).closest('.note').toggleClass('collapsed');
 		saveBoard();
 		return false;
 	});
