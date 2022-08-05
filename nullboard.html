@@ -1598,6 +1598,9 @@
 
 			<a href=# class=auto-backup>Auto-backup...</a>
 
+			<a href=# class=stash-board-local> =&gt; Stash board</a>
+			<a href=# class=unstash-board-local> &lt;= Unstash board</a>
+
 			<div class="section ui-prefs break">
 				<a href=# class=title>UI preferences<u>...</u></a>
 				<div class=details>
@@ -2658,6 +2661,68 @@
 
 // -----------------------------------------------------------------------
 
+        // NB: in this section, camelCase() are methods,
+        //     and snake_case() are common functions
+
+        function shallowClone() {
+            return Object.assign(new this.constructor(), this);
+        };
+
+        // ---------------------------------------------------------------
+
+        function clone_note_shallow(n) {
+            return shallowClone.call(n);
+        };
+
+        function clone_note_deep(n) {
+            return clone_note_shallow(n);
+        };
+
+        // ---------------------------------------------------------------
+
+        function clone_list_shallow(L) {
+            return shallowClone.call(L);
+        };
+
+        function deepCloneList() {
+            var result = clone_list_shallow(this);
+                result.notes = [];
+
+            for (var e of this.notes) {
+                result.notes.push(clone_note_deep(e));
+            }
+
+            return result;
+        };
+
+        function clone_list_deep(L) {
+            return deepCloneList.call(L);
+        }
+
+        // ---------------------------------------------------------------
+
+        function clone_board_shallow(b) {
+            return shallowClone.call(b);
+        };
+
+        function deepCloneBoard() {
+            var result = clone_board_shallow(this);
+                result.lists = [];
+
+            for (var e of this.lists) {
+                result.lists.push(clone_list_deep(e));
+            }
+
+            return result;
+        }
+
+        function clone_board_deep(b) {
+            return deepCloneBoard.call(b);
+        }
+
+
+// -----------------------------------------------------------------------
+
 	function Note(text, id)
 	{
 		this.text    = text;
@@ -2706,6 +2771,34 @@
 		}
 
 	}
+
+
+// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
+
+// todo: clear it out when done -- or adjust to use the current convention
+_DEBUG = 1; // yes, we want it global
+function _dbg(text) {
+    if (_DEBUG) {
+        console.log(`# [dbg] ${text}`);
+    }
+}
+
+function _dump(expression, comment) {
+    if (_DEBUG) {
+        // console.log(`ctor: ${expression.constructor}`);
+        if (expression.constructor === String) {
+            console.log(`# [dbg] /${expression}/ =>`);
+            console.log(eval(expression));
+        } else {
+            if (comment) { console.log(`${comment}:`); }
+            console.log(expression);
+        }
+    }
+}
+
+// # try to add this at the end :
+// _dump('NB');
 
 </script>
 
@@ -3326,7 +3419,7 @@
                                 n.old    = $note.hasClass('old');
 				n.marked = $note.hasClass('mark');
 				n.new    = $note.hasClass('new');
-                                // 
+                                //
 				n.min    = $note.hasClass('collapsed');
 
                                 // n.id     = + $note.attr('data-id');
@@ -3441,7 +3534,7 @@
 				if (n.old)     $n.addClass('old');
 				if (n.new)     $n.addClass('new');
 				if (n.marked)  $n.addClass('mark');
-                                // 
+                                //
 				if (n.min)     $n.addClass('collapsed');
 				$l_notes.append($n);
 
@@ -3513,6 +3606,27 @@
 		NB.storage.setActiveBoard(demo.id);
 
 		return Object.assign(new Board(), demo);
+	}
+
+	/*
+	 *      copying a board structure to a "stashed" location
+	 */
+	function stashBoardCopyLocal(nb_ref)
+	{
+            if (nb_ref.board) {
+                // var board = nb_ref.board.deepClone();
+                var board = clone_board_deep(nb_ref.board);
+                nb_ref.stashed = board;
+
+                _dbg(`stashBoardCopyLocal(): stashed a clone of board ${nb_ref.board.id}`);
+                updatePageTitle(`stashed ${board.id}.${board.revision} (Ok)`);
+            } else {
+                alert("stashBoardCopyLocal(): no board to stash!");
+                return;
+            }
+
+            // just in case
+            return board; // 'var' in JavaScript has function scope, right?
 	}
 
 	/*
@@ -3972,16 +4086,19 @@
 	/*
 	 *
 	 */
-	function updatePageTitle()
+	function updatePageTitle(message)
 	{
 		var title = 'Nullboard';
 
 		if (NB.board)
 		{
-                        title = NB.board.title || '(untitled board)' ;
-                        // title = 'NB - ' + (title || '(untitled board)');
+			title = NB.board.title || '(untitled board)' ;
+			// title = 'NB - ' + (title || '(untitled board)');
                         title = 'NB - ' + title  + " - " + NB.board.id + '.' + NB.board.revision ;
 
+                        if (message) {
+                            title = title + ' | ' + message
+                        }
 		}
 
 		document.title = title;
@@ -5036,6 +5153,33 @@
 		return false;
 	});
 
+        // --------------------------------------------------
+
+	$('.config .stash-board-local').on('click', function(){
+		// NB.stashed =
+                stashBoardCopyLocal(NB);
+	});
+
+	$('.config .unstash-board-local').on('click', function(){
+                var stashed = NB.stashed;
+                if (stashed) {
+                    console.log("[info] loading stashed board: ", stashed);
+                    stashed.revision ++ ;
+                    NB.board = stashed;
+
+                    NB.storage.saveBoard(stashed);
+                    NB.storage.setActiveBoard(stashed.id);
+
+                    showBoard(true);
+
+                    updatePageTitle('(unstashed)');
+                } else {
+                    alert("Please stash a board before it can be loaded!");
+                }
+	});
+
+        // --------------------------------------------------
+
 	//
 	$('.config .f-prefs .ui-fs .less').on('click', function(){
 		setFontSize( parseInt(10*getFontSize()) / 10. - 0.5 );
@@ -5156,6 +5300,9 @@
 		blobVersion: 20190412, // board blob format in Storage
 		board: null,
 		storage: null,
+
+                // debug merging
+                stashed: null, // a board clone if set
 
 		peek: function(name)
 		{
