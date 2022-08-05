@@ -1599,9 +1599,14 @@
 			<a href=# class=auto-backup>Auto-backup...</a>
 			<a href=# class=test-demo>Make a test board</a>
 
-			<a href=# class=stash-board-local> =&gt; Stash board </a>
-			<a href=# class=unstash-board-local> &lt;= Unstash board </a>
-			<a href=# class=merge-stashed-local> &lt;= Merge stashed + </a>
+			<a href=# class=stash-board-local> =&gt; Stash board locally</a>
+			<a href=# class=unstash-board-local> &lt;= Unstash saved board</a>
+			<a href=# class=merge-stashed-local> &lt;= Merge local stash (+) </a>
+                        <!-- &#38; -->
+			<a href=# class=stash-board-remote> --&gt; Stash board remotely (R)</a>
+			<a href=# class=fetch-stashed-remote> &lt;-- Fetch remote (F)</a>
+
+			<a href=# class=stash-and-fetch-remote> //=&gt; Stash and &lt;--// fetch remote (/)</a>
 
 			<div class="section ui-prefs break">
 				<a href=# class=title>UI preferences<u>...</u></a>
@@ -2957,7 +2962,6 @@ function boardToIndex(lookup_index, board, old_or_new) {
             } else {
                 _dbg(`boardToIndex(): adding n=${note_to_add.id} (${old_or_new})`);
 
-                // updated = new NoteData(note_to_add.shallowClone(), L.id, i);
                 updated = new NoteData(clone_note_deep(note_to_add), L.id, i);
                 // everything that is not 'new' or 'right' is considered 'left' / 'old' )
                 if ( old_or_new == 'right' || old_or_new == 'new' ) {
@@ -4065,6 +4069,185 @@ function mergeBoards(left_board, right_board) {
                     _dbg(`NB.stashed is empty: ${NB.stashed}`)
                 }
 	};
+
+
+	/*
+	 *      copying a board structure to a (dedicated) remote location
+	 */
+
+        function _getRemoteBackupConfig(nb_ref) {
+
+            // basically take the first one which does not look like a predefined local ;
+            // if there are none -- take the local one )
+
+            var result;
+
+            var agents = nb_ref.storage.conf.backups.agents;
+
+            for (var a of agents) {
+                result = a.conf;
+                // see fixupConfig() code
+                if (a?.conf.base != 'http://127.0.0.1:10001') {
+                    break;
+                }
+            }
+            // here conf must be either the first with non-local base, or the last config in the list )
+
+            return result;
+        }
+
+
+	function stashBoardCopyRemote(nb_ref)
+	{
+            if (!(nb_ref.board)) {
+                alert("stashBoardCopyRemote(): no board to stash!");
+                return;
+            } // else ..
+
+            var board = nb_ref.board;
+
+            var conf_remote = _getRemoteBackupConfig(nb_ref);
+            if ( !conf_remote ) {
+                alert("stashBoardCopyRemote(): please set a remote backup location to proceed!");
+                return;
+            } // else ..
+
+            var url = conf_remote.base + '/stash-board/' + board.id;
+            // // strip object methods, etc
+            // var data = JSON.parse(JSON.stringify(nb_ref.board));
+
+            // [ https://stackoverflow.com/a/4159726 ]
+            $.ajax({
+                        type: "PUT",
+                        cache: false,
+                        // async: true,
+                        contentType: 'application/json',
+                        headers: { 'X-Access-Token': conf_remote.auth },
+                        url: url,
+                        data: JSON.stringify(board),
+                        success: function() {
+                                console.log(`[info] stashBoardCopyRemote(id.rev=${board.id}.${board.revision}, name=<${board.title}>): sent (Ok)`);
+                                // updatePageTitle('sent (Ok)');
+                                updatePageTitle(`sent ${board.id}.${board.revision} (Ok)`);
+                        },
+                        error: function() {
+                                console.log(`[warning] stashBoardCopyRemote(id.rev=${board.id}.${board.revision}, name=<${board.title}>): sending to remote <${url}> FAILED`);
+                                alert(`[error] failed to send board(id.rev=${board.id}.${board.revision}, name=<${board.title}>) to remote at ${conf_remote.base} !`)
+                        }
+                  });
+
+            // just in case
+            // return board; // 'var' in JavaScript has function scope, right?
+	}
+
+	/*
+	 *      fetching board data from a (dedicated) remote location
+	 */
+	function fetchBoardCopyRemote(nb_ref, cb)
+	{
+            var result;
+
+            var conf_remote = _getRemoteBackupConfig(nb_ref);
+            if ( !conf_remote ) {
+                alert("fetchBoardCopyRemote(): please set a remote backup location to proceed!");
+                return;
+            } // else ..
+
+            var url = conf_remote.base + '/unstash-board';
+            // [ https://stackoverflow.com/a/9099182 ]
+            // [ https://stackoverflow.com/q/10362277 ]
+            $.ajax({
+                        url: url,
+                        dataType: 'json',
+                        async: true,
+                        // async: false,
+                        cache: false,
+                        success: function(data) {
+                                // _dbg(`fetchBoardCopyRemote() : fetched data =>`);
+                                // _dump(data, 'data');
+
+                                // result = JSON.parse(data);
+                                // [ https://stackoverflow.com/a/5289100 ]
+                                result = data;
+
+                                _dbg(`fetchBoardCopyRemote() : fetched a board =>`);
+                                _dump(result, 'result');
+
+                                // nb: the result can be empty
+                                if (!result) {
+                                    console.log(`[warning] fetchBoardCopyRemote(): fetched an empty board => `, result);
+                                }
+
+                                // apply results
+                                cb(result);
+                        },
+                        error: function() {
+                                console.log(`[warning] fetchBoardCopyRemote(): fetching from remote <${url}> FAILED`);
+                                alert(`[error] failed to fetch a board(id.rev=${board.id}.${board.revision}, name=<${board.title}>) to remote at ${conf_remote.base} !`)
+                        }
+                  });
+
+            return result;
+	}
+
+
+        function invokeFetchBoardCopyRemote() {
+                // alert('fetch-stashed-remote');
+                var board = fetchBoardCopyRemote(NB, function(received) {
+                    if (received) {
+                        // NB.board = mergeBoards(NB.board, NB.stashed);
+                        console.log("[info] fetched an external board: ", received);
+                        received.revision ++ ;
+                        NB.board = received;
+
+                        NB.storage.saveBoard(received);
+                        NB.storage.setActiveBoard(received.id);
+
+                        showBoard(true);
+
+                        // closeBoard(true);
+
+                        updatePageTitle(`fetched ${received.id}.${received.revision} (Ok)`);
+
+                    } else {
+                        console.log("[warning] fetched an _empty_ external board: ", received);
+                    }
+                });
+                // return board // nope, sync calls are not recommended
+        };
+
+        function invokeStashAndFetchRemote() {
+                // alert('fetch-stashed-remote');
+                var board = fetchBoardCopyRemote(NB, function(received) {
+                    if (received) {
+                        // NB.board = mergeBoards(NB.board, NB.stashed);
+                        console.log("[info] fetched an external board: ", received);
+
+                        var stashed = stashBoardCopyLocal(NB);
+                        if (stashed) {
+
+                            received.revision ++ ;
+                            NB.board = received;
+
+                            NB.storage.saveBoard(received);
+                            NB.storage.setActiveBoard(received.id);
+
+                            showBoard(true);
+
+                            // closeBoard(true);
+
+                            updatePageTitle(`fetched ${received.id}.${received.revision}, stashed ${stashed.id}.${stashed.revision}`);
+
+                        } else {
+                            console.log("[warning] failed to stash local board, ignoring fetch result");
+                        }
+
+                    } else {
+                        console.log("[warning] fetched an _empty_ external board: ", received);
+                    }
+                });
+	};
+
 
 
 	/*
@@ -5609,6 +5792,17 @@ function mergeBoards(left_board, right_board) {
 	});
 
 	$('.config .merge-stashed-local').on('click', invokeMergeStashedLocal);
+
+        // --------------------------------------------------
+
+	$('.config .stash-board-remote').on('click', function(){
+                // alert('stash-board-remote');
+                stashBoardCopyRemote(NB);
+	});
+
+        $('.config .fetch-stashed-remote').on('click', invokeFetchBoardCopyRemote);
+
+	$('.config .stash-and-fetch-remote').on('click', invokeStashAndFetchRemote);
 
         // --------------------------------------------------
 
