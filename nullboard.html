@@ -627,6 +627,18 @@
 	}
 
 	/***/
+	.board .note.mark {
+		background: #ffe6e6;
+	}
+
+	.board .note.mark.editing {
+		background: #fff;
+	}
+
+	.board .note.mark .text {
+	}
+
+	/***/
 	.board .note.collapsed {
 		padding-bottom: 6px;
 	}
@@ -1636,6 +1648,7 @@
 				<div class=bulk>
 					<a href=# class='del-note warn'>X</a>
 					<a href=# class='raw-note'>R</a>
+					<a href=# class='mark-unmark'>M</a>
 					<a href=# class='collapse'>_</a>
 				</div>
 			</div>
@@ -2593,6 +2606,8 @@
 		this.text = text;
 		this.raw  = false;
 		this.min  = false;
+                // merge colors, can be used for other purposes as well )
+		this.marked  = false;
 	}
 
 	function List(title)
@@ -3234,8 +3249,9 @@
 			$list.find('.note').each(function(){
 				var $note = $(this)
 				var n = l.addNote( getText($note.find('.text')) );
-				n.raw = $note.hasClass('raw');
-				n.min = $note.hasClass('collapsed');
+				n.raw    = $note.hasClass('raw');
+				n.marked = $note.hasClass('mark');
+				n.min    = $note.hasClass('collapsed');
 			});
 		});
 
@@ -3338,8 +3354,9 @@
 			list.notes.forEach(function(n){
 				var $n = $ndiv.clone();
 				setText( $n.find('.text'), n.text );
-				if (n.raw) $n.addClass('raw');
-				if (n.min) $n.addClass('collapsed');
+				if (n.raw)     $n.addClass('raw');
+				if (n.marked)  $n.addClass('mark');
+				if (n.min)     $n.addClass('collapsed');
 				$l_notes.append($n);
 			});
 
@@ -4830,6 +4847,12 @@
 
 	$('.wrap').on('click', '.board .collapse', function(){
 		$(this).closest('.note').toggleClass('collapsed');
+		saveBoard();
+		return false;
+	});
+
+	$('.wrap').on('click', '.board .mark-unmark', function(){
+		$(this).closest('.note').toggleClass('mark');
 		saveBoard();
 		return false;
 	});
