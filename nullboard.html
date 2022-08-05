@@ -5439,6 +5439,33 @@ function mergeBoards(left_board, right_board) {
 			if (! redoBoard())
 				showDing();
 		}
+                else // Ctrl-Alt-R
+		if (ev.ctrlKey && ev.altKey && (ev.keyCode == 82))
+		{
+                    // alert(`Ctrl-Alt-Shift-R`);
+                    stashBoardCopyRemote(NB);
+                    _dbg("stashBoardCopyRemote(NB) command requested via a hotkey");
+		}
+                else // Ctrl-Alt-F
+                if (ev.ctrlKey && ev.altKey && (ev.keyCode == 70))
+                {
+                    invokeFetchBoardCopyRemote();
+                    _dbg("invokeFetchBoardCopyRemote() command requested via a hotkey");
+                }
+                else // Ctrl-Alt-Shift-/ as Ctrl-Alt-?
+                // if (ev.ctrlKey && ev.altKey && (ev.keyCode == 63))
+                if (ev.ctrlKey && ev.altKey && (ev.key == '?'))
+                {
+                    invokeStashAndFetchRemote();
+                    _dbg("invokeStashAndFetchRemote() command requested via a hotkey");
+                }
+                else // Ctrl-Alt-'+'
+                // if (ev.ctrlKey && ev.altKey && (ev.keyCode == 43))
+                if (ev.ctrlKey && ev.altKey && (ev.key == '+'))
+                {
+                    invokeMergeStashedLocal();
+                    _dbg("invokeMergeStashedLocal() command requested via a hotkey");
+                }
 	});
 
 	$('.wrap').on('click', '.board .text', function(ev){
@@ -5547,12 +5574,34 @@ function mergeBoards(left_board, right_board) {
 			return false;
 		}
 
-		// done + toggle 'raw'
+		// done + toggle 'raw' // Alt-'R'
 		if (isNote && ev.altKey && ev.keyCode == 82)
 		{
 			$this.parent().toggleClass('raw');
 			stopEditing($this, false, false);
 			return false;
+		}
+
+                // Alt-O|M|N
+		if (isNote && ev.altKey) {
+
+                        var changed = false;
+
+                        if (ev.keyCode == 77) {
+                            $this.parent().toggleClass('mark');
+                            changed = true;
+                        } else if (ev.keyCode == 78) {
+                            $this.parent().toggleClass('new');
+                            changed = true;
+                        } else if (ev.keyCode == 79) {
+                            $this.parent().toggleClass('old');
+                            changed = true;
+                        }
+
+                        if (changed) {
+                            stopEditing($this, false, false);
+                            return false;
+                        }
 		}
 
 		// ctrl-shift-8
