@@ -7,7 +7,8 @@ This is a Flask-based implemenation for a backup server for for Alexander Pankra
   * [A Fair Warning](#a-fair-warning)
   * [Prerequisites](#prerequisites)
   * [Alternatives](#alternatives)
-  * Protocol Overview
+  * [Protocol Overview](#protocol-overview)
+    * []()
   * Implementation Details
 
 ## A Fair Warning
@@ -33,7 +34,52 @@ We would obviously need Flask, [Flask-CORS][flask-cors] is required to reply wit
 You may want to have a look at [nullboard-nodejs-agent][apankrat-nb-issue-57] by [OfryL][ofryl-nodejs-bk], and/or [nullboard-agent][nullboard-agent] -- the original backup server implemenation for Windows, written in C.
 
 
+## Protocol Overview
 
+I am going to describe my understanding of Nullboard backup protocol below. You can skip this section unless you want to roll out your own implementation, or would need to fix something -- for example, in the case if the protocol has changed and you want to understand the way it was.
+
+### a http session example
+
+Since I believe that most people would prefer an example to a specification -- here is a reduced `http` session example captured by Wireshark:
+
+```
+PUT /board/1659177201493 HTTP/1.1
+Host: 127.0.0.1:20001
+User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0
+Accept: application/json, text/javascript, */*; q=0.01
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate
+Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+X-Access-Token: 12345
+Content-Length: 3456
+Origin: null
+Connection: keep-alive
+Sec-Fetch-Dest: empty
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: cross-site
+
+self=file%3A%2F%2F%2F...
+
+Content-Type: text/html; charset=utf-8
+Content-Length: 2
+Access-Control-Allow-Origin: null
+Vary: Origin
+Server: Werkzeug/1.0.1 Python/3.6.9
+Date: Tue, 02 Aug 2022 08:55:38 GMT
+
+{}
+```
+
+I truncated the payload after `file%3A%2F%2F%2F` and replaced it with an ellipsis, but essentially it is a `www-form-urlencoded` json dictionary, which I will describe below.
+
+### an informal specification
+
+As we know, Nullboard has "local backup" and "remote backup" settings.
+
+  1. "Local backup" expects a http server at `127.0.0.1:10001`.
+  2. "Remote backup" server specification for the same would look as `http://127.0.0.1:10001` ; you get the idea.
+  3. "Access token" value goes into `X-Access-Token:` header of the request ; e.g. the above session example uses access token value of "12345".
+  4. 
 
 
 <!------------------------------------------------------------>
