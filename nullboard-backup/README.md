@@ -9,6 +9,7 @@ This is a Flask-based implemenation for a backup server for for Alexander Pankra
   * [Alternatives](#alternatives)
   * [Protocol Overview](#protocol-overview)
     * []()
+    * []()
   * Implementation Details
 
 ## A Fair Warning
@@ -79,7 +80,10 @@ As we know, Nullboard has "local backup" and "remote backup" settings.
   1. "Local backup" expects a http server at `127.0.0.1:10001`.
   2. "Remote backup" server specification for the same would look as `http://127.0.0.1:10001` ; you get the idea.
   3. "Access token" value goes into `X-Access-Token:` header of the request ; e.g. the above session example uses access token value of "12345".
-  4. 
+     * if you do not want to handle this token -- for example you assume that your network is safe enough (e.g. a localhost connection or a small vpn, etc), it can be ignored
+  5. Our backup server shall support at least  'PUT', 'DELETE' and 'OPTIONS requests, although the latter two can be ignored (with an empty 200 reply -- see the code for details).
+  6. The client sends an `Origin:` header with a value depending on the address of the Nullboard page, and expects a `Access-Control-Allow-Origin:` header in the reply; this response header shall either contain the same value as was sent in the `Origin:` field, or an asterisk `*`, or any otehr compatible value as specified by [the CORS standard][cors-protocol-spec].
+     * My suggestion would be to go with mirroring of the same value, unless you know better.
 
 
 <!------------------------------------------------------------>
@@ -93,3 +97,4 @@ As we know, Nullboard has "local backup" and "remote backup" settings.
 [nullboard-poc-dev]: https://github.com/gf-mse/nullboard/tree/dev/
 [flask-cors]: https://flask-cors.readthedocs.io/en/3.0.10/
 [nullboard-agent]: https://github.com/apankrat/nullboard-agent
+[cors-protocol-spec]: https://fetch.spec.whatwg.org/#http-cors-protocol
