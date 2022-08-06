@@ -2,6 +2,23 @@
 
 <!-- FILLME: add a TOC here -->
 
+  * [Summary](#summary)
+    * [Proof-of-Concept Warning](#proof-of-concept-warning)
+  * [Merging NB Boards](#merging-nb-boards)
+    * [The Algorithm](#the-algorithm)
+    * [Notes on Implementation](#notes-on-implemetation)
+      * [preparations](#preparations)
+      * [marked notes](#marked-notes)
+      * [note and list ids](#note-and-list-ids)
+      * [old and new notes](#old-and-new-notes)
+      * [stashing a board](#stashing-a-board)
+      * [merge boards](#merge-boards)
+      * [a test board to play](#a-test-board-to-play)
+      * [make it shared](#make-it-shared)
+      * [suggested workflows](#suggested-workflows)
+      * [adding some hotkeys](#adding-some-hotkeys)
+      * [protocols and such](#protocols-and-such)
+
 ## Summary
 
 This proof-of-concept project has several things in it:
