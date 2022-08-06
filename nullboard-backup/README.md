@@ -8,9 +8,9 @@ This is a Flask-based implemenation for a backup server for for Alexander Pankra
   * [Prerequisites](#prerequisites)
   * [Alternatives](#alternatives)
   * [Protocol Overview](#protocol-overview)
-    * []()
-    * []()
-  * Implementation Details
+    * [a http session example](#a-http-session-example)
+    * [an informal specification](#an-informal-specification)
+  * [Notes on Implementation](#notes-on-implementation)
 
 ## A Fair Warning
 
@@ -88,6 +88,12 @@ As we know, Nullboard has "local backup" and "remote backup" settings.
   8. When decoded, the content of the payload would be a json dictionary of the following form: `{ "data": <1>, "meta": <2>, "self": <3> }`, where `<1>` and `<2>` would be _stringified_ (i.e. further encoded, this time -- converted to a string form) versions of `json` dictionaries, and `<3>` would simply be the address of the Nullboard page as seen by the client.
      * `meta` (`<2>`) field content example: ` "{\"title\":\"test board\",\"current\":2,\"ui_spot\":0,\"history\":[2,1],\"backupStatus\":{\"simp-3\":{}}}"` -- as one can see, it can be decoded to the following json fragment: `{'title': 'test board', 'current': 2, 'ui_spot': 0, 'history': [2, 1], 'backupStatus': {'simp-3': {}}}`
      * `data` field would contain a _stringified_ version of our board as it would be saved by Nullboard "Export this board" menu option.
+
+
+## Notes on Implementation
+
+
+
 
 <!------------------------------------------------------------>
 
