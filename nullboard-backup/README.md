@@ -84,7 +84,10 @@ As we know, Nullboard has "local backup" and "remote backup" settings.
   5. Our backup server shall support at least  'PUT', 'DELETE' and 'OPTIONS requests, although the latter two can be ignored (with an empty 200 reply -- see the code for details).
   6. The client sends an `Origin:` header with a value depending on the address of the Nullboard page, and expects a `Access-Control-Allow-Origin:` header in the reply; this response header shall either contain the same value as was sent in the `Origin:` field, or an asterisk `*`, or any otehr compatible value as specified by [the CORS standard][cors-protocol-spec].
      * My suggestion would be to go with mirroring of the same value, unless you know better.
-
+  7. The client would send the payload encoded as `www-form-urlencoded`, although would expect the result to be plain json (`application/json`). Go figure.
+  8. When decoded, the content of the payload would be a json dictionary of the following form: `{ "data": <1>, "meta": <2>, "self": <3> }`, where `<1>` and `<2>` would be _stringified_ (i.e. further encoded, this time -- converted to a string form) versions of `json` dictionaries, and `<3>` would simply be the address of the Nullboard page as seen by the client.
+     * `meta` (`<2>`) field content example: ` "{\"title\":\"test board\",\"current\":2,\"ui_spot\":0,\"history\":[2,1],\"backupStatus\":{\"simp-3\":{}}}"` -- as one can see, it can be decoded to the following json fragment: `{'title': 'test board', 'current': 2, 'ui_spot': 0, 'history': [2, 1], 'backupStatus': {'simp-3': {}}}`
+     * `data` field would contain a _stringified_ version of our board as it would be saved by Nullboard "Export this board" menu option.
 
 <!------------------------------------------------------------>
 
