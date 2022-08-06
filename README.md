@@ -14,6 +14,9 @@ This proof-of-concept project has several things in it:
 For a Python backup server description, go to [its own page ](./nullboard-backup/README.md).     
 Board merging implementation is described below.
 
+Please also read the [proof-of-concept warning](#proof-of-concept-warning).
+
+
 ## Merging NB Boards
 
 The proposed workflow is that we "stash" a board to be merged to a temporary internal "register" slot, and then merge the "stashed" board with the current one:
@@ -48,9 +51,22 @@ Finally, for a pair of boards to merge, let us voluntarily consider the second o
 
 That's about it; however -- to make things easier, I will quickly comment on commit history below.
 
-#### 
+#### proof-of-concept warning
+
+Please expect this to be a proof-of-concept version: the code shall work, but may require some minor polishing.
+
+For example, I did not update blob version code (shame on me); to update your "classic" board with id fields, do a dummy edit (e.g. press Ctrl-Enter twice to add an empty note and then delete it), but at the moment there is no pre-merge check that both boards have an "updated" format with all lists and notes having ids. Please add one or ping me to do so if you don't feel capable, but please know that this may take another six months or even longer from me to find a small time window. (See the thread in [issue 54][apankrat-nb-issue-54] to get an idea.)
+
+However, all "old format" board shall in general be importable, and for any new boards this shall just work; finally, since any unknown fields shall in general just be ignored, any "new format" board shall in theory be easily importable back to the "classic" NB.
+
+#### dev changes
+
+First, there are some minor cosmetic and development-mode changes:
+
 
 <!-- 
+  * adding 
+
 
 (1)
  - (host A -> stash remote)
@@ -69,6 +85,7 @@ That's about it; however -- to make things easier, I will quickly comment on com
 <!------------------------------------------------------------>
 
 [apankrat-nb]: https://github.com/apankrat/nullboard
+[apankrat-nb-issue-54]: https://github.com/apankrat/nullboard/issues/54
 [apankrat-nb-issue-57]: https://github.com/apankrat/nullboard/issues/57#issuecomment-1125926959
 [ofryl-nodejs-bk]: https://github.com/OfryL/nullboard-nodejs-agent
 [apankrat-nb-4jag]: https://github.com/apankrat/nullboard/issues/54#issuecomment-1139188206
