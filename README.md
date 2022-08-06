@@ -16,6 +16,40 @@ Board merging implementation is described below.
 
 ## Merging NB Boards
 
+The proposed workflow is that we "stash" a board to be merged to a temporary internal "register" slot, and then merge the "stashed" board with the current one:
+
+![merging NB boards in action](doc/nullboard-demo-1.gif "merging nb boards using 'stash' / 'merge' operations")
+
+### The Algorithm
+
+The idea behind merging is quite simple and is borrowed from the way it is done in old-school editors like Emacs:
+
+  * first, we assign each list and each note a unique id : this allows us to cheat and determine which notes or list titled have been changed )
+  * second, if we don't know how to merge two texts, we just write them both side-by-side, or the new version on top of the old one.
+
+Finally, after merging two boards, let us highlight "old", "new" and "merge conflict" note cells and let the user review and update the results.
+
+( See the gif above for an illustration on how that might look like. )
+
+### Notes on Implemetation
+
+First and foremost -- sadly this is the first piece of JS code I ever wrote; I was trying to be sensible, but please be warned.
+
+In particular, js code may have a few extra bits, since I did not immediately realise that JSON does not serialize function methods, and therefore we shall rather instead use the usual common functions applied to objects )
+
+Otherwise, the merge algorithm is pretty straighforward:
+
+  * (a) build an index (note id) -> (note data) for all notes ; if the index already has a note, merge the old and the new one, as described above
+     * in particular, "note data" shall have the list id of the list where the note belonged )
+  * (b) merge the list headers the same way (by making a quick (list id) -> (list) index), producing an array of new (empty) note lists
+  * (c) go through the note index from (a), and put the (merged) note to a list with a list id of the original note
+
+Finally, for a pair of boards to merge, let us voluntarily consider the second one to be the "new" version, and therefore give it some priority in the case of a conflict -- for example, if a note changed lists, let us put it after the merge in the "new" list instead of the "old" one.
+
+That's about it; however -- to make things easier, I will quickly comment on commit history below.
+
+#### 
+
 <!-- 
 
 (1)
