@@ -92,7 +92,26 @@ As we know, Nullboard has "local backup" and "remote backup" settings.
 
 ## Notes on Implementation
 
-<!-- -->
+I have started this trying to get _something working_, ideally -- in no time, since time was a bit of an issue; so I have picked Flask because some googling revealed that it might be a good choice for quickly powering up a REST API in Python. 
+
+However, I have never used Flask before and the protocol details described above were yet to be discovered.
+
+So the code started with a simple Flask "hello, world" app, then I tried to save _anything_ that is sent our way and only then started to extract and save the board data.
+
+Finally, due to a certain lack of time, I have left "it as" is almost the first moment it started to do the job -- so the code inside is not exactly neat and is more like a product of a moderately chaotic evolution process.
+
+Now let us get to some details.
+
+### form field
+
+As one can see from the [http session](#a-http-session-example) section, our data is coming as an url-encoded payload of a `put` request; for reasons unknown, Flask [chooses to expose the parsed result][on-flask-data-fields] [as a `.form` field][flask-form-field] if it comes this way, and [as a `.json` field][flask-json-field] -- if it has a json-compatible mimetype (which apparently [does not include `text/javascript`][flask-is-json-2.2.x])
+
+<!-- dev version -->
+<!-- form field -->
+<!-- 20-minute intervals; versions -->
+<!-- delete => cron -->
+<!-- valid json for push / pull -->
+
 
 
 
@@ -108,3 +127,7 @@ As we know, Nullboard has "local backup" and "remote backup" settings.
 [flask-cors]: https://flask-cors.readthedocs.io/en/3.0.10/
 [nullboard-agent]: https://github.com/apankrat/nullboard-agent
 [cors-protocol-spec]: https://fetch.spec.whatwg.org/#http-cors-protocol
+[on-flask-data-fields]: https://stackoverflow.com/questions/10434599/get-the-data-received-in-a-flask-request
+[flask-is-json-2.2.x]: https://flask.palletsprojects.com/en/2.2.x/api/#flask.Request.is_json
+[flask-form-field]: https://flask.palletsprojects.com/en/2.2.x/api/#flask.Request.form
+[flask-json-field]: https://flask.palletsprojects.com/en/2.2.x/api/#flask.Request.json
