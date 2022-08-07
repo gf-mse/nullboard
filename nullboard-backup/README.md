@@ -11,6 +11,14 @@ This is a Flask-based implemenation for a backup server for for Alexander Pankra
     * [a http session example](#a-http-session-example)
     * [an informal specification](#an-informal-specification)
   * [Notes on Implementation](#notes-on-implementation)
+    * [flask specifics - the form field](#flask-specifics---the-form-field-1)
+    * [no delete](#no-delete)
+    * [10-minute intervals](#10-minute-intervals)
+    * [configs and such](#configs-and-such)
+    * [push and pull](#push-and-pull)
+    * [security considerations](#security-considerations)
+
+<!-- (#security-considerations) -->
 
 ## A Fair Warning
 
@@ -82,6 +90,7 @@ As we know, Nullboard has "local backup" and "remote backup" settings.
   3. "Access token" value goes into `X-Access-Token:` header of the request ; e.g. the above session example uses access token value of "12345".
      * if you do not want to handle this token -- for example you assume that your network is safe enough (e.g. a localhost connection or a small vpn, etc), it can be ignored
   5. Our backup server shall support at least  'PUT', 'DELETE' and 'OPTIONS requests, although the latter two can be ignored (with an empty 200 reply -- see the code for details); for boards, the `put` request comes at `/board/<board-id>` url.
+     * there is also a `/config` endpoint that exists to save the most recent Nullboard config; that includes our very secret access token for the backup server itself, [so please be warned](#security-considerations).
   6. The client sends an `Origin:` header with a value depending on the address of the Nullboard page, and expects a `Access-Control-Allow-Origin:` header in the reply; this response header shall either contain the same value as was sent in the `Origin:` field, or an asterisk `*`, or any other compatible value as specified by [the CORS standard][cors-protocol-spec].
      * My suggestion would be to go with mirroring of the same value, unless you know better.
   7. The client would send the payload encoded as `www-form-urlencoded`, although would expect the result to be plain json (`application/json`). Go figure. ( As a side note -- in my example the client receives a `text/html` mimetype in the response -- which I suppose fits an `*/*` spec -- but it seems to be happy as long as the payload parses as valid json. See also [notes on implementation](#notes-on-implementation) below. )
@@ -118,18 +127,50 @@ PS. Even if one would ever need a delete, a simple cron job server-side would do
 
 ### 10-minute intervals
 
+Current logic for saving incoming data is as follows.
+
+Originally I was saving board versions using their name, the board id, and the hostname which made the request; I was also using the current date and time, so the actual directory structure looks as follows:
+
+```
+boards
+|-- full
+|   `-- <hostname>
+|       `-- 2022-08-05
+|           `-- 21
+|               |-- 10
+|               `-- 20
+`-- nbx
+    `-- <hostname>
+        `-- 2022-08-05
+            `-- 21
+                |-- 10
+                `-- 20
+                
+```
+
+Here `full` is the originaly first tree containing full saves of incomming data, and `nbx` contains only the decoded `data` bits, i.e., the boards.
+
+Next, as one can see, we are saving the board revisions by the hour, dividing every hour into 10-minute intervals -- so for every ten minutes, only the latest update within these ten minutes was saved, allowing us to lose not more that the last ten minutes of work.
+
+Later on, when board merging was introduced, I decided to add the board revision number to its filename, and so the saves sometimes started to accumulate. To remedy that, only the last 5 board modifications within the present 10-minute interval are preserved, and the rest is considered unimportant and is now deleted )
+
+Finally, the most recent version of the board save is simply saved under `./boards` under the name `<hostname>.<board_name>.<board_id>.<yyy-mm-dd>.latest-saved.nbx`.
+
+So this is not confusing at all, is it? Ж:-)
+
+### configs and such
+
+`/config` endpoint calls, designed to save Nullboard config changes, end up under a `./config` directory, and follow the same convention as for `./boards`.
 
 ### push and pull
 
 The existing API was extended to handle two independent board operations: "push to remote", which we call "stash", reusing one of git verbs, and "pull from remote", which we accordingly call "unstash".
 
-The respected API endpoints are `/stash-board/<id>` and `/unstash-board`, and, to make a bit of a difference, this time ht epayload format is just `json` (`application/json`) both ways.
+The respected API endpoints are `/stash-board/<id>` (`put`) and `/unstash-board` (`get`), and, for the sake of simplicity, this time the payload format is just `json` (`application/json`) both ways.
 
+### security considerations
 
-
-<!-- 10-minute intervals; versions -->
-<!-- security considerations -->
-
+The same interface could have easily been extended to serve the saved files -- let us say, at `http://<server>/saved/` endpoint; however, one must consider that the saved nullboard config files would also contain the backup server token, so one might want to protect that data using some authentication mechanism.
 
 
 
