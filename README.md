@@ -89,7 +89,7 @@ Also, there's now an option to overwrite the existing board with the same id on 
 
 #### marked notes
 
-[5e0f76cb72][5e0f76cb72] introduces a 'M' button in addition to "classic" 'X', 'R', '&#95;' ones, which shall toggle note's "marked" state, represented by magenta-ish background. ('M' will also meas "merged" later on.)
+[5e0f76cb72][5e0f76cb72] introduces a 'M' button in addition to "classic" 'X', 'R', '&#95;' ones, which shall toggle note's "marked" state, represented by magenta-ish background. ('M' will also mean "merged" later on.)
 
 #### note and list ids
 
