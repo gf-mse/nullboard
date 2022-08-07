@@ -81,7 +81,7 @@ As we know, Nullboard has "local backup" and "remote backup" settings.
   2. "Remote backup" server specification for the same would look as `http://127.0.0.1:10001` ; you get the idea.
   3. "Access token" value goes into `X-Access-Token:` header of the request ; e.g. the above session example uses access token value of "12345".
      * if you do not want to handle this token -- for example you assume that your network is safe enough (e.g. a localhost connection or a small vpn, etc), it can be ignored
-  5. Our backup server shall support at least  'PUT', 'DELETE' and 'OPTIONS requests, although the latter two can be ignored (with an empty 200 reply -- see the code for details).
+  5. Our backup server shall support at least  'PUT', 'DELETE' and 'OPTIONS requests, although the latter two can be ignored (with an empty 200 reply -- see the code for details); for boards, the `put` request comes at `/board/<board-id>` url.
   6. The client sends an `Origin:` header with a value depending on the address of the Nullboard page, and expects a `Access-Control-Allow-Origin:` header in the reply; this response header shall either contain the same value as was sent in the `Origin:` field, or an asterisk `*`, or any other compatible value as specified by [the CORS standard][cors-protocol-spec].
      * My suggestion would be to go with mirroring of the same value, unless you know better.
   7. The client would send the payload encoded as `www-form-urlencoded`, although would expect the result to be plain json (`application/json`). Go figure. ( As a side note -- in my example the client receives a `text/html` mimetype in the response -- which I suppose fits an `*/*` spec -- but it seems to be happy as long as the payload parses as valid json. See also [notes on implementation](#notes-on-implementation) below. )
@@ -102,15 +102,33 @@ Finally, due to a certain lack of time, I have left "it as" is almost the first 
 
 Now let us get to some details.
 
-### form field
+### flask specifics - the form field
 
 As one can see from the [http session](#a-http-session-example) section, our data is coming as an url-encoded payload of a `put` request; for reasons unknown, Flask [chooses to expose the parsed result][on-flask-data-fields] [as a `.form` field][flask-form-field] if it comes this way, and [as a `.json` field][flask-json-field] -- if it has a json-compatible mimetype (which apparently [does not include `text/javascript`][flask-is-json-2.2.x])
 
-<!-- dev version -->
-<!-- form field -->
-<!-- 20-minute intervals; versions -->
-<!-- delete => cron -->
-<!-- valid json for push / pull -->
+### no delete
+
+Furthermore, from `put`, `options` and `delete` operations only `put` has an actual non-trivial implementation; in other words, the `delete` requests are effectively ignored. (This is not too hard to change and in fact there are commented lines in the code that do almost that -- renaming the saved boards to `filename.deleted` to imitate the delete process.)
+
+There are two reasons for it. First, our files are really small -- we speak of kilobytes here, and being put on a compressed filesystem, like I did in this case, they are highly unlikely to ever exhaust the disk space on any modern SD card, not mentioning real hard disks.
+
+Second, I did not want a glitch in a board implementation or lets say a bug in my backup server implementation to accidentally delete all my kittens and kill the board backups -- or the other way around.
+
+PS. Even if one would ever need a delete, a simple cron job server-side would do in most cases, and in some rare ones one would just have to make sure that there are at least a few most recent undelted verions left; see also the bit about "most recent version" below.
+
+### 10-minute intervals
+
+
+### push and pull
+
+The existing API was extended to handle two independent board operations: "push to remote", which we call "stash", reusing one of git verbs, and "pull from remote", which we accordingly call "unstash".
+
+The respected API endpoints are `/stash-board/<id>` and `/unstash-board`, and, to make a bit of a difference, this time ht epayload format is just `json` (`application/json`) both ways.
+
+
+
+<!-- 10-minute intervals; versions -->
+<!-- security considerations -->
 
 
 
