@@ -4143,7 +4143,7 @@ function mergeBoards(left_board, right_board) {
 	/*
 	 *      fetching board data from a (dedicated) remote location
 	 */
-	function fetchBoardCopyRemote(nb_ref, cb)
+	function fetchBoardCopyRemote(nb_ref, cb_ok)
 	{
             var result;
 
@@ -4179,11 +4179,11 @@ function mergeBoards(left_board, right_board) {
                                 }
 
                                 // apply results
-                                cb(result);
+                                cb_ok(result);
                         },
                         error: function() {
                                 console.log(`[warning] fetchBoardCopyRemote(): fetching from remote <${url}> FAILED`);
-                                alert(`[error] failed to fetch a board(id.rev=${board.id}.${board.revision}, name=<${board.title}>) to remote at ${conf_remote.base} !`)
+                                alert(`[error] failed to fetch a board from remote at ${conf_remote.base} !`)
                         }
                   });
 
