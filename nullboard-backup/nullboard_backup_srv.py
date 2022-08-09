@@ -2,7 +2,7 @@
 
 import sys
 import os
-import re # filename filters
+import re # filename filters, etc
 
 from os.path import join as path_join
 import glob # for stashing and unstashing
@@ -21,6 +21,9 @@ from flask_cors import CORS
 
 ## import socket
 from socket import gethostname, gethostbyaddr
+
+# return the latest revision, etc
+from fnmatch import (fnmatch as fn_fnmatch, filter as fnmatch_filter)
 
 #
 # IP filtering
@@ -46,7 +49,9 @@ if _DEBUG:
 RE_SPECIAL_AS_TEXT = r'''[\%\&\"\,\)\@\^\.\;\!\/\}\*\[\(\>\\\?\#\`\{\]\:\+\~\\'\|\$\<]+'''
 RE_SPECIAL = re.compile( RE_SPECIAL_AS_TEXT )
 
-
+#  "revision": 97
+RE_REVISION_AS_TEXT = r'''["']?revision["']?[:]\s*(?P<revision>\d+)'''
+RE_REVISION = re.compile(RE_REVISION_AS_TEXT)
 
 SERVER_LISTEN_ON_ALL_INTERFACES = '0.0.0.0'
 
@@ -74,7 +79,7 @@ CORS(app)
 ON_BACKUP_PROTOCOL = """
 
     Looking at the code --
-    
+
         https://github.com/apankrat/nullboard/blob/46525687c4da36b36f123af4364a1c193fedf637/nullboard.html#L2063
         https://github.com/apankrat/nullboard/blob/46525687c4da36b36f123af4364a1c193fedf637/nullboard.html#L2448
 
@@ -83,12 +88,12 @@ ON_BACKUP_PROTOCOL = """
         "tshark -i lo -w testsession.`date +%F-t-%s`.dump -f 'port 10001' -P -t ad"
 
      -- there are (up to) three REST API commands in action:
-     
+
         OPTIONS
         PUT
         DELETE
 
-    They are mostly happy with a 200 response, except for when they are not, 
+    They are mostly happy with a 200 response, except for when they are not,
     and in that case they seem to be expecting a 201 or a 204 depending on the context
     // see e.g. https://stackoverflow.com/a/827045/558008 )
 
@@ -102,9 +107,9 @@ BACKUP_LOGIC_DESCRIPTION = """
 
     So far the idea is that we save everything, with the current pattern being
       ./config/YYYY-MM-DD/HH/MM , where MM is ~ "minutes mod 10" : 10, 20, 30 ...,
-    and the older files being overwritten with the newer ones -- 
+    and the older files being overwritten with the newer ones --
        -- so that we shall be able to recover from a browser update ))
-       
+
     In addition to that, we save the '.data' part to a file with the same ".nbx"
     extension as is produced by Nullboard itself )
 
@@ -114,7 +119,7 @@ BACKUP_LOGIC_DESCRIPTION = """
 # ---------------------------------------------------------------------
 # quick debug prints
 
-# // of course there is logging, but I have no time for this 
+# // of course there is logging, but I have no time for this
 class DebugOutput:
 
     def __init__(self, request):
@@ -194,7 +199,7 @@ def get_request_data( request ):
     """
         shall return a parsed json - alike structure, or None
     """
-    
+
     data = None
     if request.mimetype == 'application/x-www-form-urlencoded':
         data = request.form
@@ -212,9 +217,9 @@ def get_json_data( request ):
     """
         get the .data part of the board
     """
-    
+
     _dbg = Dbg(request)
-    
+
     json_data = None
     if request.mimetype == 'application/x-www-form-urlencoded':
         data = request.form
@@ -233,7 +238,7 @@ def get_json_data( request ):
         _dbg(f"[dbg] unexpected request type: {request.mimetype!r}")
 
     return json_data
-    
+
 
 def get_request_board_data( request ):
     """
@@ -251,11 +256,11 @@ def get_request_board_data( request ):
 def time_to_subpath(t_tuple):
     """ "2021-12-31 18:12" -> '2021-12-31/18/10'  """
 
-    minutes = ( t_tuple.tm_min // 10 ) * 10   
+    minutes = ( t_tuple.tm_min // 10 ) * 10
     datedir = strftime('%F/%H')
-    
+
     result = path_join(datedir, str(minutes))
-    
+
     return result
 
 
@@ -307,7 +312,7 @@ def make_filename_parts( board_id, json_data=None, t_tuple=None, prefix=None, su
         # remove spaces
         # board_name = '.'.join(board_name.split())
         board_name = '_'.join(board_name.split())
-        
+
         if use_rev:
             board_rev = json_data.get('revision', None)
         else:
@@ -329,7 +334,7 @@ def make_filename( board_id, json_data=None, t_tuple=None, prefix=None, suffix=N
     parts = make_filename_parts( board_id=board_id, json_data=json_data, t_tuple=t_tuple, prefix=prefix, suffix=suffix, use_rev = use_rev )
 
     filename = '.'.join(parts)
-    
+
     return filename
 
 
@@ -337,14 +342,14 @@ def make_filename( board_id, json_data=None, t_tuple=None, prefix=None, suffix=N
 def save_board_data(board_id, request):
     """
         attempts to save to a path under cwd )
-        
-        nb(1): 'board_id' is essential, and we expect bool(board_id) to be true )        
+
+        nb(1): 'board_id' is essential, and we expect bool(board_id) to be true )
         nb(2): we expect 'board_id' to come from request path, e.g. '/board/<board-id>'
     """
 
     _dbg = Dbg(request)
 
-    ## result = '' 
+    ## result = ''
     ## retcode = RETURN_200_OK
 
     retcode = RETURN_200_UPDATED
@@ -378,14 +383,14 @@ def save_board_data(board_id, request):
             os.makedirs(directory, exist_ok = True)
             fullname = path_join(directory, filename)
             with open(fullname, 'wt') as f:
-                f.write(json.dumps(data, indent=4, sort_keys=True, ensure_ascii=False))            
+                f.write(json.dumps(data, indent=4, sort_keys=True, ensure_ascii=False))
 
 
     # // if we are successful -- let us delete old revisions
     # // // TODO : clean this up
     full_parts   = make_filename_parts( board_id, json_data=board_data_json, t_tuple=t_now, prefix=hostname, suffix='full' )
     board_parts  = make_filename_parts( board_id, json_data=board_data_json, t_tuple=t_now, prefix=hostname, suffix='nbx' )
-    
+
     for directory, parts in ( (dir_full,   full_parts,   )
                             , (dir_board,  board_parts,  )
                             ):
@@ -417,12 +422,12 @@ def save_board_data(board_id, request):
 def save_stashed_board(board_id, request):
     """
         attempts to save to a path under cwd )
-        
-        nb(1): 'board_id' is essential, and we expect bool(board_id) to be true )        
+
+        nb(1): 'board_id' is essential, and we expect bool(board_id) to be true )
         nb(2): we expect 'board_id' to come from request path, e.g. '/stash/<board-id>'
     """
 
-    ## result = '' 
+    ## result = ''
     ## retcode = RETURN_200_OK
 
     retcode = RETURN_200_UPDATED
@@ -446,7 +451,7 @@ def save_stashed_board(board_id, request):
         os.makedirs(dir_stashed, exist_ok = True)
         fullname = path_join(dir_stashed, filename_json)
         with open(fullname, 'wt') as f:
-            f.write(json.dumps(board_data_json, indent=4, sort_keys=True, ensure_ascii=False))            
+            f.write(json.dumps(board_data_json, indent=4, sort_keys=True, ensure_ascii=False))
 
     # return None
     return result, retcode
@@ -481,21 +486,97 @@ def load_stashed_board():
     ## # [ https://github.com/pallets/flask/issues/478#issuecomment-166723852 ]
     return result, retcode
 
+# ---------------------------------------------------------------------
+
+def find_board_revisions_iter(board_id, search_root, file_mask, _str_type = type('')):
+    """
+        grep -lr --exclude='*.full' 1659588762014 * | while read f; do {
+            ls -lh "$f" ; grep revision "$f";
+        } | tr '\n' ' ' ; echo ''; done
+    """
+
+    #
+    # NB: the current implementation does not do full parsing in the interests of speed
+    #     // even faster could be to popen() an external find-grep process --
+    #     //  -- but that wouldn't be quite cross-platform )
+    #
+
+    str_id = board_id if isinstance(board_id, _str_type) else str(board_id)
+
+    for dir, subdirds, files in os.walk(search_root, onerror = lambda e: print(e, file=sys.stderr)):
+
+        matching = fnmatch_filter(files, file_mask)
+        for m in matching:
+            filename = path_join(dir, m)
+            # // try ...
+            with open(filename, 'rt') as r:
+                filename_text = r.read()
+                # // check revision id ..
+                if filename_text.find(str_id) >= 0:
+                    # // get revision ..
+                    m = RE_REVISION.search(filename_text)
+                    if m:
+                        revision = int( m.group('revision') )
+
+                        yield (filename, revision)
+
+
+
+def get_latest_board_revision_filename(board_id):
+    """  """
+
+    # check save_board_data() code
+
+    where = path_join(BACKUP_DIRECTORY, 'boards', 'nbx')
+    matching_filenames = list( find_board_revisions_iter(board_id, search_root=where, file_mask='*.nbx') )
+
+    latest = None
+    if matching_filenames:
+
+        # sort by revision number
+        matching_filenames.sort(key = lambda tu: tu[1])
+
+        latest = matching_filenames[-1][0] # last entry, (filename, rev)[0]
+
+    return latest
+
+
+def load_most_recent_revision(board_id):
+    """
+        return json text of the most recent revisio found for a given id --
+         -- or {}
+    """
+
+    result  = '{}'
+    retcode = RETURN_200_OK
+
+    latest_rev_name = get_latest_board_revision_filename(board_id)
+    if latest_rev_name:
+        with open(latest_rev_name, 'rt') as r:
+            result = r.read()
+
+
+    return result, retcode
+
+
+
+# ---------------------------------------------------------------------
+
 
 def save_other_data(board_id, dir, request):
     """
         attempts to save to a path under cwd )
-        
-        nb(1): 'board_id' is essential, and we expect bool(board_id) to be true )        
+
+        nb(1): 'board_id' is essential, and we expect bool(board_id) to be true )
         nb(2): we expect 'board_id' to come from request path, e.g. '/board/<board-id>'
     """
 
     # default return values, could change later if needed
-    result = '' 
+    result = ''
 
     retcode = RETURN_200_OK
 
-    # by default, don't be picky and agree to save empty datasets 
+    # by default, don't be picky and agree to save empty datasets
 
     data = get_request_data(request)
 
@@ -521,7 +602,7 @@ def save_other_data(board_id, dir, request):
             # [ https://stackoverflow.com/questions/14853694/python-jsonify-dictionary-in-utf-8/39561607 ]
             f.write(json.dumps(data, indent=4, sort_keys=True, ensure_ascii=False))
 
-            # return something json-alike 
+            # return something json-alike
             result = '{}'
 
     # return None
@@ -529,6 +610,7 @@ def save_other_data(board_id, dir, request):
 
 
 
+# ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # handlers
 
@@ -574,7 +656,7 @@ def handle_board_request(request, board_id):
     # some default settings, probably not ideal
     result, retcode = (None, RETURN_418_I_AM_A_TEAPOT)
 
-    if board_id is None: 
+    if board_id is None:
         if request.method == 'PUT':
             result, retcode = handle_test_request(request)
             ## result, retcode = handle_other_requests(request, case='unknown', board_id=board_id)
@@ -586,7 +668,7 @@ def handle_board_request(request, board_id):
             result, retcode = handle_dummy_request(request)
 
     # Ok, now we have a board_id
-    else: 
+    else:
         ## if request.method in ('PUT', 'POST'):
         if request.method == 'PUT' :
             result, retcode = save_board_data(board_id, request)
@@ -640,7 +722,7 @@ def handle_any_request(case='board', board_id=None):
         if access_token != BACKUP_VERIFY_TOKEN:
             _dbg.out(f"[warning] => got access token {access_token!r} different from what we expected!\n")
             abort(RETURN_403_FORBIDDEN)
-            
+
 
     ## print("\n")
     ## logline = f"{request.origin} => {request.host} : {request.method.lower()} : {request.url!r}"
@@ -650,8 +732,8 @@ def handle_any_request(case='board', board_id=None):
 
     # [ https://stackoverflow.com/questions/797834/should-a-restful-put-operation-return-something ]
 
-    ## result = None # this would result in a flask error 
-    result = '' 
+    ## result = None # this would result in a flask error
+    result = ''
 
     retcode = RETURN_200_OK
 
@@ -677,19 +759,25 @@ def handle_any_request(case='board', board_id=None):
         if 'board' == case:
             result, retcode = handle_board_request(request, board_id=board_id)
 
-        elif 'stash' == case: 
+        elif 'stash' == case:
             if request.method == 'PUT':
                 result, retcode = save_stashed_board(board_id=board_id, request = request)
             else:
                 result, retcode = handle_dummy_request(request)
 
-        elif 'unstash' == case: 
+        elif 'unstash' == case:
             if request.method == 'GET':
-                result, retcode = load_stashed_board()                
+                result, retcode = load_stashed_board()
             else:
                 result, retcode = handle_dummy_request(request)
 
-        else: 
+        elif 'board-latest-rev' == case:
+            if request.method == 'GET':
+                result, retcode = load_most_recent_revision(board_id)
+            else:
+                result, retcode = handle_dummy_request(request)
+
+        else:
             result, retcode = handle_other_requests(request, case=case, board_id=board_id)
 
         # [ https://stackoverflow.com/questions/7824101/return-http-status-code-201-in-flask ]
@@ -698,7 +786,7 @@ def handle_any_request(case='board', board_id=None):
         ##          # // we should have set the response mimetype, I suppose,
         ##          # // but our response is actually quite likely ignored )
         ##          result = json.dumps(result)
-        ##  
+        ##
         ##      ret = (result, retcode)
         ##      # [ https://stackoverflow.com/q/11945523 ]
         ##      # [ https://stackoverflow.com/a/11945643 ]
@@ -707,7 +795,7 @@ def handle_any_request(case='board', board_id=None):
         ##          ret = make_response(result, retcode)
         ##          ret.mimetype = 'application/json'
         ##
-        ##  
+        ##
         ##      return ret
         ##
 
@@ -720,6 +808,7 @@ def handle_any_request(case='board', board_id=None):
 
 
 
+# ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # routes
 
@@ -775,8 +864,14 @@ def stash_request_handler(id=None):
     # print("stash_request_handler()", file=sys.stderr)
     ## f = I.currentframe()
     ## print(f"stash_request_handler(): lo: {f.f_locals}, ac: {f.f_code.co_argcount}", file=sys.stderr)
-    
+
     return handle_any_request(case = 'stash', board_id = id)
+
+
+@app.route('/boards/latest-revision/<id>', methods=['GET', 'OPTIONS'], provide_automatic_options=True)
+def latest_board_rev_handler(id=None):
+    return handle_any_request(case = 'board-latest-rev', board_id = id)
+
 
 @app.route('/unstash-board', methods=['GET', 'OPTIONS'], provide_automatic_options=True)
 def unstash_request_handler(id=None):
@@ -789,20 +884,21 @@ def config_handler(id=None):
 
 
 # ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
 # main
 
 if __name__ == '__main__':
 
     # default settings
     LOCALHOST, DEFAULT_PORT = LOCALHOST_DEFAULT_BACKUP_SERVER_SETTINGS
-    
-    # another option 
+
+    # another option
     ALLHOSTS = SERVER_LISTEN_ON_ALL_INTERFACES
 
     # listen on a VPN interface by default
     if 0:
         IFACE_VPN = 'ourvpn'
-    
+
         # [ https://stackoverflow.com/questions/3837069/how-to-get-network-interface-card-names-in-python/12261059#12261059 ]
         from netifaces import interfaces, ifaddresses, AF_INET
 
@@ -812,11 +908,11 @@ if __name__ == '__main__':
 
 
     # [ https://flask.palletsprojects.com/en/2.0.x/api/#flask.Flask.run ]
-    ## app.run(debug=True, host='0.0.0.0', port='10001') 
+    ## app.run(debug=True, host='0.0.0.0', port='10001')
 
     HOST = os.environ.get('ADDR', ADDRESS)
     PORT = os.environ.get('PORT', DEFAULT_PORT)
 
-    ## app.run(debug=_DEBUG, host=ALLHOSTS, port=PORT) 
-    app.run(debug=_DEBUG, host=HOST, port=PORT) 
+    ## app.run(debug=_DEBUG, host=ALLHOSTS, port=PORT)
+    app.run(debug=_DEBUG, host=HOST, port=PORT)
 

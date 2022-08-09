@@ -1607,6 +1607,7 @@
 			<a href=# class=fetch-stashed-remote> &lt;-- Fetch remote (F)</a>
 
 			<a href=# class=stash-and-fetch-remote> //=&gt; Stash and &lt;--// fetch remote (/)</a>
+			<a href=# class=stash-and-get-latest-revision>Stash and fetch the latest revision</a>
 
 			<div class="section ui-prefs break">
 				<a href=# class=title>UI preferences<u>...</u></a>
@@ -2794,7 +2795,7 @@ function _dbg(text) {
 function _dump(expression, comment) {
     if (_DEBUG) {
         // console.log(`ctor: ${expression.constructor}`);
-        if (expression.constructor === String) {
+        if (expression && expression.constructor === String) {
             console.log(`# [dbg] /${expression}/ =>`);
             console.log(eval(expression));
         } else {
@@ -4248,6 +4249,106 @@ function mergeBoards(left_board, right_board) {
                 });
 	};
 
+
+        // --------------------------------------------------------------------
+
+	/*
+	 *      try to fetch the most recent revision for a given board id
+	 */
+	function fetchLatestBoardRev(nb_ref, cb_ok)
+	{
+            var result;
+
+            // _dump(nb_ref);
+
+            var conf_remote = _getRemoteBackupConfig(nb_ref);
+            if ( !conf_remote ) {
+                alert("fetchLatestBoardRev(): please set a remote backup location to proceed!");
+                return;
+            } // else ..
+
+            board = nb_ref.board;
+            // _dump(board);
+            board_id = nb_ref?.board.id;
+            // _dump(board_id);
+            if ( !(board_id) && board_id !== 0) {
+                alert("fetchLatestBoardRev(): please choose some board first to proceed!");
+                return;
+            }
+
+            var url = conf_remote.base + '/boards/latest-revision/' + board.id ;
+            // [ https://stackoverflow.com/a/9099182 ]
+            // [ https://stackoverflow.com/q/10362277 ]
+            $.ajax({
+                        url: url,
+                        dataType: 'json',
+                        async: true,
+                        // async: false,
+                        cache: false,
+                        success: function(data) {
+                                // _dbg(`fetchBoardCopyRemote() : fetched data =>`);
+                                // _dump(data, 'data');
+
+                                // result = JSON.parse(data);
+                                // [ https://stackoverflow.com/a/5289100 ]
+                                result = data;
+
+                                _dbg(`fetchLatestBoardRev() : fetched a latest board revision: ${data?.revision} for board: ${board.id} =>`);
+                                _dump(result, 'result');
+
+                                // nb: the result can be empty
+                                if (!result) {
+                                    console.log(`[warning] fetchLatestBoardRev(): fetched an empty board => `, result);
+                                }
+
+                                // apply results
+                                cb_ok(result);
+                        },
+                        error: function() {
+                                console.log(`[warning] fetchLatestBoardRev(): fetching from remote <${url}> FAILED`);
+                                alert(`[error] failed to fetch most recent board revision for board (${board.id}.${board.revision}) from remote at ${conf_remote.base} !`)
+                        }
+                  });
+
+            return result;
+	}
+
+
+        function invokeStashAndFetchLatestBoardRev() {
+                // alert('fetch-stashed-remote');
+                var board = fetchLatestBoardRev(NB, function(received) {
+                    if (received) {
+                        // NB.board = mergeBoards(NB.board, NB.stashed);
+                        console.log("[info] fetched an external board: ", received);
+
+                        var stashed = stashBoardCopyLocal(NB);
+                        if (stashed) {
+
+                            received.revision ++ ;
+                            NB.board = received;
+
+                            NB.storage.saveBoard(received);
+                            NB.storage.setActiveBoard(received.id);
+
+                            showBoard(true);
+
+                            // closeBoard(true);
+
+                            updatePageTitle(`lastrev: fetched ${received.id}.${received.revision}, stashed ${stashed.id}.${stashed.revision}`);
+
+                        } else {
+                            console.log("[warning] failed to stash local board, ignoring fetch result");
+                            alert("[warning] failed to stash local board, ignoring fetch result")
+                        }
+
+                    } else {
+                        console.log(`[notice] fetched empty data for the latest revision of board ${NB?.board.id} :`, received);
+                        alert(`found no revisions for board: ${NB?.board.id}.${NB?.board.revision}`)
+                    }
+                });
+	};
+
+        // --------------------------------------------------------------------
 
 
 	/*
@@ -5852,6 +5953,8 @@ function mergeBoards(left_board, right_board) {
         $('.config .fetch-stashed-remote').on('click', invokeFetchBoardCopyRemote);
 
 	$('.config .stash-and-fetch-remote').on('click', invokeStashAndFetchRemote);
+
+	$('.config .stash-and-get-latest-revision').on('click', invokeStashAndFetchLatestBoardRev);
 
         // --------------------------------------------------
 
