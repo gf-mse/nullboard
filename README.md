@@ -44,7 +44,7 @@ The proposed workflow is that we "stash" a board to be merged to a temporary int
 
 The idea behind merging is quite simple and is borrowed from the way it is done in old-school editors like Emacs:
 
-  * first, we assign each list and each note a unique id : this allows us to cheat and determine which notes or list titled have been changed )
+  * first, we assign each list and each note a unique id : this allows us to cheat and determine which notes or list titles have been changed )
   * second, if we don't know how to merge two texts, we just write them both side-by-side, or the new version on top of the old one.
 
 Finally, after merging two boards, let us highlight "old", "new" and "merge conflict" note cells and let the user review and update the results.
